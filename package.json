@@ -3,6 +3,9 @@
   "dependencies": {},
   "devDependencies": {
     "del": "^2.2.2",
+    "eslint": "^3.8.1",
+    "eslint-loader": "^1.6.0",
+    "eslint-plugin-angular": "^1.4.1",
     "gulp": "^3.9.1",
     "gulp-filter": "^4.0.0",
     "gulp-util": "^3.0.7",

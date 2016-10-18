@@ -2,6 +2,11 @@ module.exports = {
   module: {
     preLoaders: [
       {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        loader: 'eslint'
+      },
+      {
         test: /\.ts$/,
         exclude: /node_modules/,
         loader: 'tslint'
