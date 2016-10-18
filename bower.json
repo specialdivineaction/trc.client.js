@@ -1,0 +1,10 @@
+{
+  "name": "trc",
+  "main": "dist/trc.js",
+  "dependencies": {
+    "angular": "^1.5.0",
+    "lodash": "^4.0.0",
+    "citeproc-js": "Juris-M/citeproc-js#^1.1.122"
+  },
+  "devDependencies": {}
+}
