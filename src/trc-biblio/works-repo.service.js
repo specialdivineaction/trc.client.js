@@ -22,13 +22,31 @@ function worksRepoProvider() {
       }
     });
 
+    var workCopyResource = $resource(provider.url + '/:workId/copies/:copyId', { copyId: '@id' }, {
+      update: {
+        method: 'PUT'
+      }
+    });
+
     var editionResource = $resource(provider.url + '/:workId/editions/:editionId', { editionId: '@id' }, {
       update: {
         method: 'PUT'
       }
     });
 
+    var editionCopyResource = $resource(provider.url + '/:workId/editions/:editionId/copies/:copyId', { copyId: '@id' }, {
+      update: {
+        method: 'PUT'
+      }
+    });
+
     var volumeResource = $resource(provider.url + '/:workId/editions/:editionId/volumes/:volumeId', { volumeId: '@id' }, {
+      update: {
+        method: 'PUT'
+      }
+    });
+
+    var volumeCopyResource = $resource(provider.url + '/:workId/editions/:editionId/volumes/:volumeId/copies/:copyId', { copyId: '@id' }, {
       update: {
         method: 'PUT'
       }
@@ -43,6 +61,7 @@ function worksRepoProvider() {
     repo.getWork = getWork;
     repo.getEdition = getEdition;
     repo.getVolume = getVolume;
+    repo.getDigitalCopy = getDigitalCopy;
     repo.create = createWork;
     repo.createWork = createWork;
     repo.createEdition = createEdition;
@@ -158,6 +177,48 @@ function worksRepoProvider() {
       volume.$promise.then(adaptVolume);
 
       return volume;
+    }
+
+    /**
+     * Retrieves a digital copy object for the identified work/edition/volume
+     *
+     * A proxy object will be returned immediately, and its properties will be populated after the
+     * request succeds. If fine-grained asynchronous handling, etc. is required, the request's
+     * promis is available on DigitalCopy.$promise.
+     *
+     * @param {string} copyId
+     * @param {string} workId
+     * @param {string} [editionId]
+     * @param {string} [volumeId]
+     * @return {DigitalCopy}
+     */
+    function getDigitalCopy(copyId, workId, editionId, volumeId) {
+      var resource;
+
+      if (workId && editionId && volumeId) {
+        resource = volumeCopyResource;
+      } else if (workId && editionId) {
+        resource = editionCopyResource;
+      } else if (workId) {
+        resource = workCopyResource;
+      } else {
+        throw new Error('Expected work ID and optionally edition and volume ID options, but found none');
+      }
+
+      var options = {
+        copyId: copyId,
+        workId: workId
+      }
+
+      if (editionId) {
+        options.editionId = editionId;
+      }
+
+      if (volumeId) {
+        options.volumeId = volumeId;
+      }
+
+      resource.get(options);
     }
 
     /**
