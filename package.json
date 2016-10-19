@@ -1,9 +1,16 @@
 {
   "name": "trc",
+  "version": "0.0.1",
+  "license": "Apache-2.0",
+  "author": [
+    "Matthew Barry <mbarry@tamu.edu>"
+  ],
+  "main": "src/index",
   "dependencies": {
     "angular": "^1.5.0",
-    "lodash": "^4.0.0",
-    "citeproc-js": "Juris-M/citeproc-js#1.1.137"
+    "angular-resource": "^1.5.0",
+    "angular-uuid4": "^0.3.1",
+    "lodash": "^4.0.0"
   },
   "devDependencies": {
     "del": "^2.2.2",
