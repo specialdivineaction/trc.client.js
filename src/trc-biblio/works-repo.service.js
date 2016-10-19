@@ -218,7 +218,7 @@ function worksRepoProvider() {
         options.volumeId = volumeId;
       }
 
-      resource.get(options);
+      return resource.get(options);
     }
 
     /**
