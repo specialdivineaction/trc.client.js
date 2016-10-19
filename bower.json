@@ -3,8 +3,10 @@
   "main": "dist/trc.js",
   "dependencies": {
     "angular": "^1.5.0",
+    "angular-resource": "^1.5.0",
+    "angular-uuid4": "^0.3.1",
     "lodash": "^4.0.0",
-    "citeproc-js": "Juris-M/citeproc-js#^1.1.122"
+    "citeproc-js": "Juris-M/citeproc-js#^1.1.137"
   },
   "devDependencies": {}
 }
