@@ -1,2 +1,2 @@
-const context = require.context('./', true, /\.ts$/);
+var context = require.context('./', true, /\.ts$/);
 context.keys().forEach(context);

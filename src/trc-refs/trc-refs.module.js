@@ -4,7 +4,7 @@ var _ = require('lodash');
 var CSL = require('CSL');
 
 var citeprocProvider = require('./citeproc.service');
-var refsAdapterFactor = require('./refs-adapter.service');
+var refsAdapterFactory = require('./refs-adapter.service');
 var refsRendererFactory = require('./refs-renderer.service');
 var refsRepoFactoryProvider = require('./refs-repo-factory.service');
 
