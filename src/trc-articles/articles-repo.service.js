@@ -19,6 +19,7 @@ function articlesRepoProvider() {
     repo.create = createArticle;
     repo.createFootnote = createFootnote;
     repo.get = getArticle;
+    repo.search = search;
     repo.save = saveArticle;
     repo.delete = deleteArticle;
     repo.cleanReferences = cleanReferences;
@@ -71,6 +72,15 @@ function articlesRepoProvider() {
      */
     function getArticle(id) {
       return articleResource.get({ id: id });
+    }
+
+    /**
+     * Searches for articles that match the given query
+     * @param {string} query
+     * @return {ArticleResult}
+     */
+    function search(query) {
+      return articleResource.get({ q: query });
     }
 
     /**
