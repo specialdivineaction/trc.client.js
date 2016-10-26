@@ -1,7 +1,7 @@
 module.exports = bibliographyDirective;
 
 /** @ngInject */
-function bibliographyDirective(refsRenderer) {
+function bibliographyDirective(refsRenderer, $log) {
   return {
     restrict: 'E',
     scope: {
@@ -12,10 +12,15 @@ function bibliographyDirective(refsRenderer) {
   };
 
   function linkFunc($scope, $el) {
-    var styleId = $scope.styleId || 'chicago';
-
     $scope.$watch('refs', function (newRefs) {
       if (!newRefs) {
+        return;
+      }
+
+      var styleId = $scope.styleId;
+
+      if (!styleId) {
+        $log.error('no citation style ID provided; refusing to render bibliography');
         return;
       }
 
