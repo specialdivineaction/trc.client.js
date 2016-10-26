@@ -7,6 +7,7 @@ var citeprocProvider = require('./citeproc.service');
 var refsAdapterFactory = require('./refs-adapter.service');
 var refsRendererFactory = require('./refs-renderer.service');
 var refsRepoFactoryProvider = require('./refs-repo-factory.service');
+var bibliographyDirective = require('./bibliography.directive');
 
 angular
   .module('trcRefs', [
@@ -18,4 +19,5 @@ angular
   .provider('citeproc', citeprocProvider)
   .factory('refsAdapter', refsAdapterFactory)
   .factory('refsRenderer', refsRendererFactory)
-  .provider('refsRepoFactory', refsRepoFactoryProvider);
+  .provider('refsRepoFactory', refsRepoFactoryProvider)
+  .directive('bibliography', bibliographyDirective);
