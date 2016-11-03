@@ -46,7 +46,12 @@ module.exports = {
   externals: {
     angular: true,
     CSL: true,
-    lodash: '_'
+    lodash: {
+      amd: 'lodash',
+      root: '_',
+      commonjs: 'lodash',
+      commonjs2: 'lodash'
+    }
   },
   resolve: {
     extensions: [
