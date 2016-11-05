@@ -1,5 +1,6 @@
 var angular = require('angular');
 
+require('./trc-core/trc-core.module');
 require('./trc-articles/trc-articles.module');
 require('./trc-biblio/trc-biblio.module');
 require('./trc-bio/trc-bio.module');
@@ -8,6 +9,7 @@ require('./trc-reln/trc-reln.module');
 
 angular
   .module('trc', [
+    'trcCore',
     'trcArticles',
     'trcBiblio',
     'trcBio',
