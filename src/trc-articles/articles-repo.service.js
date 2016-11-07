@@ -9,7 +9,7 @@ function articlesRepoProvider() {
   return provider;
 
   /** @ngInject */
-  function articlesRepoFactory($resource, _, uuid4) {
+  function articlesRepoFactory($resource, _, uuid4, seeAlsoRepo) {
     var articleResource = $resource(provider.url + '/:id', { id: '@id' }, {
       update: { method: 'PUT' }
     });
@@ -17,6 +17,7 @@ function articlesRepoProvider() {
     var repo = {};
     repo.getReferencesEndpoint = getReferencesEndpoint;
     repo.create = createArticle;
+    repo.createLinked = createLinkedArticle;
     repo.createFootnote = createFootnote;
     repo.get = getArticle;
     repo.search = search;
@@ -49,6 +50,27 @@ function articlesRepoProvider() {
       return new articleResource({
         articleType: type,
         title: title
+      });
+    }
+
+    /**
+     * Creates a new (persisted) article linked to the given entry via the 'see also' service
+     * @param {string} type
+     * @param {string} title
+     * @param {string} token The unique token of the linked entry
+     * @return {Promise.<Article>}
+     */
+    function createLinkedArticle(type, title, token) {
+      var article = createArticle(type, title);
+      var articleP = saveArticle(article);
+
+      var linkP = articleP.then(function (article) {
+        var link = seeAlsoRepo.create(article.ref.token, token);
+        return link.$promise;
+      });
+
+      return linkP.then(function () {
+        return article;
       });
     }
 

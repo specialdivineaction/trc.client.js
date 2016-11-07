@@ -7,6 +7,7 @@ var articlesRepoProvider = require('./articles-repo.service');
 angular
   .module('trcArticles', [
     'ngResource',
+    'trcSeeAlso',
     'uuid4'
   ])
   .constant('_', _)
