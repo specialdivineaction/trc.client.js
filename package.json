@@ -1,6 +1,6 @@
 {
   "name": "trc",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "license": "Apache-2.0",
   "author": [
     "Matthew Barry <mbarry@tamu.edu>"
@@ -13,6 +13,7 @@
     "lodash": "^4.0.0"
   },
   "devDependencies": {
+    "angular-mocks": "^1.5.0",
     "del": "^2.2.2",
     "eslint": "^3.8.1",
     "eslint-loader": "^1.6.0",

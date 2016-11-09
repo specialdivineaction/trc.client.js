@@ -1,0 +1,8 @@
+- key: tree_test
+  label: Tree Test Categorization
+  description: ''
+  type: tree
+- key: missing_label_test
+  label: ~
+  description: ''
+  type: tree
