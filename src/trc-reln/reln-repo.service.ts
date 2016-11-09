@@ -269,7 +269,7 @@ export class RelnRepoProvider {
 
 type RelationshipTypeMap = { [typeId: string]: IRelationshipType };
 
-class RelnRepo {
+export class RelnRepo {
   typeResource: IRelationshipTypeResource;
   relnResource: IRelationshipResource;
 
