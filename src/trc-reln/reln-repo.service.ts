@@ -535,7 +535,8 @@ export class RelnRepo {
    * @return {INormalizedRelationship}
    */
   private normalizeRelationship(reln: IRelationship, root: string): INormalizedRelationship {
-    const reverse = reln.targets.some(anchor => anchor.ref.token === root);
+    // NOTE: Array.prototype.some() does not respect vacuous truth
+    const reverse = reln.targets.length === 0 || reln.targets.some(anchor => anchor.ref.token === root);
 
     return {
       id: reln.id,
