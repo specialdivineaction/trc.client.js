@@ -120,6 +120,12 @@ interface IRelationship extends angular.resource.IResource<IRelationship> {
   id: string;
 
   /**
+   * Self-identifying information for this relationship.
+   * @type {IEntryReference}
+   */
+  ref: IEntryReference;
+
+  /**
    * The id of the relationship type (see IRelationshipType)
    * @type {string}
    */
@@ -147,6 +153,39 @@ interface IRelationship extends angular.resource.IResource<IRelationship> {
   $update(): angular.IPromise<IRelationship>;
 }
 
+interface ISimpleRelationship extends angular.resource.IResource<ISimpleRelationship> {
+  /**
+   * A unique identifier for this relationship (required only during update requests)
+   * @type {string}
+   */
+  id?: string;
+
+  /**
+   * The id of the relationship type (see IRelationshipType)
+   * @type {string}
+   */
+  typeId: string;
+
+  /**
+   * A detailed description of this relationship
+   * @type {string}
+   */
+  description: string;
+
+  /**
+   * A set of anchors that relate multiple entries in an undirected relationship or
+   * the "source" entries in a directed relationship
+   * @type {ISimpleAnchor[]}
+   */
+  related: ISimpleAnchor[];
+
+  /**
+   * A set of anchors that serve as the "target" entries in a directed relationship
+   * @type {ISimpleAnchor[]}
+   */
+  targets: ISimpleAnchor[];
+}
+
 interface IAnchor {
   /**
    * A display label for this anchor (e.g. the title of a work or name of a person)
@@ -163,7 +202,28 @@ interface IAnchor {
   /**
    * Arbitrary key/value(s) mapping for additional anchor metadata
    */
-  properties: { [key: string]: string[] };
+  properties: IProperties;
+}
+
+type IProperties = { [key: string]: string[] };
+
+interface ISimpleAnchor {
+  /**
+   * A display label for this anchor (e.g. the title of a work or name of a person)
+   * @type {string}
+   */
+  label: string;
+
+  /**
+   * Token of the referenced entry
+   * @type {string}
+   */
+  ref: string;
+
+  /**
+   * Arbitrary key/value(s) mapping for additional anchor metadata
+   */
+  properties: IProperties;
 }
 
 interface IEntryReference {
@@ -188,8 +248,8 @@ interface IEntryReference {
 
 type IRelationshipTypeResource = angular.resource.IResourceClass<IRelationshipType>
 
-interface IRelationshipResource extends angular.resource.IResourceClass<IRelationship> {
-  update(IRelationship): IRelationship;
+interface IRelationshipResource extends angular.resource.IResourceClass<IRelationship | ISimpleRelationship> {
+  update(reln: ISimpleRelationship): IRelationship;
 }
 
 export class RelnRepoProvider {
@@ -266,8 +326,8 @@ class RelnRepo {
    *
    * @return {IRelationship}
    */
-  createRelationship(): IRelationship {
-    var reln = new this.relnResource();
+  createRelationship(): ISimpleRelationship {
+    var reln = <ISimpleRelationship> new this.relnResource();
     reln.related = [];
     reln.targets = [];
     return reln;
@@ -276,13 +336,16 @@ class RelnRepo {
   /**
    * Creates a new empty anchor model
    *
+   * @param {string} label
+   * @param {string} token
+   * @param {Object.<string, string>} properties
    * @return {IAnchor}
    */
-  createAnchor(): IAnchor {
+  createAnchor(label: string, token: string, properties: {[prop: string]: string[]} = {}): ISimpleAnchor {
     return {
-      label: null,
-      ref: null,
-      properties: {}
+      label,
+      ref: token,
+      properties
     };
   }
 
@@ -295,58 +358,40 @@ class RelnRepo {
    * @return {Relationship}
    */
   get(id: string): IRelationship {
-    return this.relnResource.get({id});
+    return <IRelationship> this.relnResource.get({id});
   }
 
   /**
    * Find all relationships matching the given criteria.
-   * @param  {object|string} options
-   * @property {string} options.uri (default if options is a string)
-   * @property {string} options.typeId
-   * @property {string} options.direction "from" (out-relationships), "to" (in-relationships), or "any"
-   * @property {integer} options.start
-   * @property {integer} options.max
+   * @param  {string} token
+   * @param {IProperties} properties
    * @return {Relationship[]}
    */
-  search(options: any): IRelationship[] {
-    if (!options) {
-      throw new Error('no options provided')
+  search(token: string, properties?: IProperties): IRelationship[] {
+    const relns = <IRelationship[]> this.relnResource.query({ entity: token });
+
+    if (!properties) {
+      return relns;
     }
 
-    if (angular.isString(options)) {
-      // treat single string as an entity URL
-      options = { uri: options };
-    }
+    const filtered = [];
 
-    var queryOpts: any = {};
+    const filteredP = relns.$promise.then(() => {
+      relns.filter(r => this.contains(token, properties, r)).forEach(r => filtered.push(r));
+      return filtered;
+    });
 
-    if (options.uri) {
-      queryOpts.entity = options.uri;
-    }
+    Object.defineProperty(filtered, '$promise', {
+      value: filteredP
+    });
 
-    if (options.typeId) {
-      queryOpts.type = options.typeId;
-    }
-
-    if (options.direction) {
-      queryOpts.direction = options.direction;
-    }
-
-    if (options.start) {
-      queryOpts.off = options.start;
-    }
-
-    if (options.max) {
-      queryOpts.max = options.max;
-    }
-
-    return this.relnResource.query(queryOpts);
+    return filtered;
   }
 
   /**
    * Saves a relationship back to the server.
    *
-   * @param {itRelationship} reln
+   * @param {IRelationship} reln
    * @return {angular.IPromise<IRelationship>} resolves on successful save
    */
   save(reln: IRelationship): angular.IPromise<IRelationship> {
@@ -366,8 +411,8 @@ class RelnRepo {
    * @return {angular.IPromise<IRelationship>} resolves on success
    */
   delete(id: string): angular.IPromise<IRelationship> {
-    var response = this.relnResource.delete({id});
-    return response.$promise
+    var response = <IRelationship> this.relnResource.delete({id});
+    return response.$promise;
   }
 
   /**
@@ -442,6 +487,44 @@ class RelnRepo {
     });
 
     return typeGroups;
+  }
+
+  /**
+   * Returns whether an anchor having the supplied token/properties is contained within
+   * the supplied relationship according to the following test:
+   *
+   * anchorA in reln iff
+   *   exists anchorB in (reln.related union reln.targets)
+   *     (anchorA.ref.token == anchorB.ref.token) and
+   *     forall (prop, values) in anchorA.properties
+   *       values != [] implies (anchorB.properties[prop] intersect values) != []
+   *
+   * @param {string} token
+   * @param {IProperties} properties
+   * @param {IRelationship} reln
+   * @return {boolean}
+   */
+  private contains(token: string, properties: IProperties, reln: IRelationship): boolean {
+    const anchors = reln.related.concat(reln.targets);
+    return anchors.some(inheritsFrom);
+
+    function inheritsFrom(anchor: IAnchor): boolean {
+      if (anchor.ref.token !== token) {
+        return false;
+      }
+
+      return Object.keys(properties).every(prop => {
+        if (properties[prop].length === 0) {
+          return true;
+        }
+
+        if (!anchor.properties.hasOwnProperty(prop)) {
+          return false;
+        }
+
+        return properties[prop].some(value => anchor.properties[prop].indexOf(value) >= 0);
+      });
+    }
   }
 
   /**
