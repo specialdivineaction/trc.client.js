@@ -1,10 +1,10 @@
 import * as angular from 'angular';
 
-const Strategies = {
-  set: 'set',
-  list: 'list',
-  tree: 'hierarchical'
-};
+// const Strategies = {
+//   set: 'set',
+//   list: 'list',
+//   tree: 'hierarchical'
+// };
 
 interface ICategorizationDesc {
   key: string;
@@ -125,9 +125,9 @@ class CategorizationRepo {
  * TODO explain why here.
  */
 class ScopedRepository {
-  nodes: NodeRepository
+  nodes: NodeRepository;
 
-  private resources: ICategorizationResources
+  private resources: ICategorizationResources;
   private scopeId: string;
 
   constructor(scopeId: string, resources: ICategorizationResources) {
@@ -146,10 +146,13 @@ class ScopedRepository {
   create(key: string, label: string, description: string, type: string) {
     // TODO convert to object
     // TODO VERIFY KEY, check uniqueness
-    const data = {key, label, description, type};
+    // const data = {key, label, description, type};
+    return null;
   }
 
-  remove(key: string) {}
+  remove(key: string) {
+    return null;
+  }
 }
 
 class NodeRepository {
@@ -188,7 +191,9 @@ class NodeRepository {
     return result;
   }
 
-  move() {}
+  move() {
+    return null;
+  }
 
   remove(node: IBasicNode, removeRefs: boolean, parent: IBasicTreeNode): angular.IPromise<any> {
     const result = this.resources.nodes.delete({
@@ -211,7 +216,9 @@ class NodeRepository {
     return result.$promise;
   }
 
-  update() {}
+  update() {
+    return null;
+  }
 
   link(node: IBasicNode, entryRef: IEntryReference): IEntryReference {
     const params = {
