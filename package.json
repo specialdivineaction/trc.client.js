@@ -1,6 +1,6 @@
 {
   "name": "trc",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "license": "Apache-2.0",
   "author": [
     "Matthew Barry <mbarry@tamu.edu>"
@@ -46,6 +46,7 @@
     "serve": "gulp serve",
     "serve:dist": "gulp serve:dist",
     "test": "gulp test",
-    "test:auto": "gulp test:auto"
+    "test:auto": "gulp test:auto",
+    "postinstall": "typings install"
   }
 }

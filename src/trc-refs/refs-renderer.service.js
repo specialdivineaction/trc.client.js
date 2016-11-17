@@ -28,136 +28,153 @@ var angular = require('angular');
  * @property {boolean} secondFieldAlign
  */
 
-module.exports = refsRendererFactory;
+module.exports = refsRendererProvider;
 
 /** @ngInject */
-function refsRendererFactory($q, $http, _, refsAdapter, citeproc) {
-  var adapterConfigP = $http.get('assets/typemap/zotero-csl.json').then(function (res) {
-    return res.data;
-  });
+function refsRendererProvider() {
+  var provider = {};
+  provider.typemapUrl = null;
+  provider.$get = refsRendererFactory;
+  return provider;
 
-  return {
-    render: renderReference,
-    renderBiblioItem: renderBiblioItem
-  };
+  /** @ngInject */
+  function refsRendererFactory($log, $q, $http, _, refsAdapter, citeproc) {
+    var adapterConfigP;
 
-  /**
-   * Asynchronously adapts and renders the given reference into an HTML bibliography
-   * @param  {Reference} reference
-   * @param  {string} styleId
-   * @return {Promise.<CiteprocReferenceDTO>}
-   */
-  function renderReference(styleId, reference) {
-    if (!styleId || !angular.isString(styleId)) {
-      throw new Error('no style provided');
+    if (!provider.typemapUrl) {
+      var msg = 'no typemap url provided; reference adapter will not work appropriately.';
+      $log.warn(msg);
+      adapterConfigP = $q.reject(new Error(msg));
+    } else {
+      adapterConfigP = $http.get(provider.typemapUrl).then(function (res) {
+        return res.data;
+      });
     }
 
-    if (!reference) {
-      throw new Error('no reference provided');
-    }
-
-    var cslReferenceP = adapterConfigP.then(function (config) {
-      return refsAdapter.adapt(config, reference);
-    });
-
-    var citeprocP = cslReferenceP.then(function (cslReference) {
-      return citeproc.load(styleId, function (key) {
-        return cslReference.bibliography[key];
-      });
-    });
-
-    var paramsP = $q.all({
-      cslReference: cslReferenceP,
-      citeproc: citeprocP
-    });
-
-    var renderP = paramsP.then(function (params) {
-      return renderCiteproc(params.citeproc, params.cslReference);
-    });
-
-    return renderP;
-  }
-
-  /**
-   * Asynchronously renders a single bibliography item.
-   * @param  {string} styleId
-   * @param  {BiblioItem} biblioItem
-   * @return {Promise.<string>}
-   */
-  function renderBiblioItem(styleId, biblioItem) {
-    var cslBiblioItemP = adapterConfigP.then(function (config) {
-      return refsAdapter.adaptBiblioItem(config, biblioItem);
-    });
-
-    var citeprocP = cslBiblioItemP.then(function (cslBiblioItem) {
-      return citeproc.load(styleId, function () {
-        return cslBiblioItem;
-      });
-    });
-
-    var cslBibliographyP = cslBiblioItemP.then(function (cslBiblioItem) {
-      var bibliography = {};
-      bibliography[cslBiblioItem.id] = cslBiblioItem;
-      return bibliography;
-    });
-
-    var paramsP = $q.all({
-      cslBibliography: cslBibliographyP,
-      citeproc: citeprocP
-    });
-
-    var renderP = paramsP.then(function (params) {
-      return renderCiteproc(params.citeproc, {
-        citations: [],
-        bibliography: params.cslBibliography
-      });
-    });
-
-    return renderP.then(function (rendered) {
-      return rendered.bibliography.html;
-    });
-  }
-
-  /**
-   * Renders a CSL bibliography and citations against the given citeproc engine
-   * @param  {CSL.Engine} citeproc
-   * @param  {CslReferenceDTO} cslReference
-   * @return {CiteprocReferenceDTO}
-   */
-  function renderCiteproc(citeproc, cslReference) {
-    citeproc.updateItems(_.keys(cslReference.bibliography));
-
-    /** @type {[0@index: number, 1@html: string, 2@id: string][]} */
-    var renderedCitations = _.flatMap(cslReference.citations, function (citation) {
-      // citeproc updates the citation internally, which causes infinite $digest loops
-      // create a copy so changes do not leak out
-      var copy = angular.copy(citation);
-      return citeproc.appendCitationCluster(copy, true);
-    });
-
-    var bibliography = citeproc.makeBibliography();
-
-    var meta = bibliography[0];
-    var items = bibliography[1].map(function (item) {
-      return item.trim();
-    });
 
     return {
-      citations: _.mapValues(_.keyBy(renderedCitations, 2), 1),
-      bibliography: {
-        meta: {
-          errors: meta.bibliography_errors,
-          done: meta.done,
-          entryIds: meta.entry_ids,
-          entrySpacing: meta.entryspacing,
-          hangingIndent: meta.hangingindent,
-          lineSpacing: meta.linespacing,
-          maxOffset: meta.maxoffset,
-          secondFieldAlign: meta['second-field-align']
-        },
-        html: meta.bibstart + items.join('') + meta.bibend,
-        items: items
-      }
+      render: renderReference,
+      renderBiblioItem: renderBiblioItem
     };
+
+    /**
+     * Asynchronously adapts and renders the given reference into an HTML bibliography
+     * @param  {Reference} reference
+     * @param  {string} styleId
+     * @return {Promise.<CiteprocReferenceDTO>}
+     */
+    function renderReference(styleId, reference) {
+      if (!styleId || !angular.isString(styleId)) {
+        throw new Error('no style provided');
+      }
+
+      if (!reference) {
+        throw new Error('no reference provided');
+      }
+
+      var cslReferenceP = adapterConfigP.then(function (config) {
+        return refsAdapter.adapt(config, reference);
+      });
+
+      var citeprocP = cslReferenceP.then(function (cslReference) {
+        return citeproc.load(styleId, function (key) {
+          return cslReference.bibliography[key];
+        });
+      });
+
+      var paramsP = $q.all({
+        cslReference: cslReferenceP,
+        citeproc: citeprocP
+      });
+
+      var renderP = paramsP.then(function (params) {
+        return renderCiteproc(params.citeproc, params.cslReference);
+      });
+
+      return renderP;
+    }
+
+    /**
+     * Asynchronously renders a single bibliography item.
+     * @param  {string} styleId
+     * @param  {BiblioItem} biblioItem
+     * @return {Promise.<string>}
+     */
+    function renderBiblioItem(styleId, biblioItem) {
+      var cslBiblioItemP = adapterConfigP.then(function (config) {
+        return refsAdapter.adaptBiblioItem(config, biblioItem);
+      });
+
+      var citeprocP = cslBiblioItemP.then(function (cslBiblioItem) {
+        return citeproc.load(styleId, function () {
+          return cslBiblioItem;
+        });
+      });
+
+      var cslBibliographyP = cslBiblioItemP.then(function (cslBiblioItem) {
+        var bibliography = {};
+        bibliography[cslBiblioItem.id] = cslBiblioItem;
+        return bibliography;
+      });
+
+      var paramsP = $q.all({
+        cslBibliography: cslBibliographyP,
+        citeproc: citeprocP
+      });
+
+      var renderP = paramsP.then(function (params) {
+        return renderCiteproc(params.citeproc, {
+          citations: [],
+          bibliography: params.cslBibliography
+        });
+      });
+
+      return renderP.then(function (rendered) {
+        return rendered.bibliography.html;
+      });
+    }
+
+    /**
+     * Renders a CSL bibliography and citations against the given citeproc engine
+     * @param  {CSL.Engine} citeproc
+     * @param  {CslReferenceDTO} cslReference
+     * @return {CiteprocReferenceDTO}
+     */
+    function renderCiteproc(citeproc, cslReference) {
+      citeproc.updateItems(_.keys(cslReference.bibliography));
+
+      /** @type {[0@index: number, 1@html: string, 2@id: string][]} */
+      var renderedCitations = _.flatMap(cslReference.citations, function (citation) {
+        // citeproc updates the citation internally, which causes infinite $digest loops
+        // create a copy so changes do not leak out
+        var copy = angular.copy(citation);
+        return citeproc.appendCitationCluster(copy, true);
+      });
+
+      var bibliography = citeproc.makeBibliography();
+
+      var meta = bibliography[0];
+      var items = bibliography[1].map(function (item) {
+        return item.trim();
+      });
+
+      return {
+        citations: _.mapValues(_.keyBy(renderedCitations, 2), 1),
+        bibliography: {
+          meta: {
+            errors: meta.bibliography_errors,
+            done: meta.done,
+            entryIds: meta.entry_ids,
+            entrySpacing: meta.entryspacing,
+            hangingIndent: meta.hangingindent,
+            lineSpacing: meta.linespacing,
+            maxOffset: meta.maxoffset,
+            secondFieldAlign: meta['second-field-align']
+          },
+          html: meta.bibstart + items.join('') + meta.bibend,
+          items: items
+        }
+      };
+    }
   }
 }
