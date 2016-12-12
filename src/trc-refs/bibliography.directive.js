@@ -27,6 +27,6 @@ function bibliographyDirective(refsRenderer, $log) {
       refsRenderer.render(styleId, newRefs).then(function (rendered) {
         $el.html(rendered.bibliography.html);
       });
-    });
+    }, true);
   }
 }
