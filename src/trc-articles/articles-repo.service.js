@@ -101,8 +101,11 @@ function articlesRepoProvider() {
      * @param {string} query
      * @return {ArticleResult}
      */
-    function search(query) {
-      return articleResource.get({ q: query });
+    function search(query, options) {
+      return articleResource.get({
+        q: query,
+        type: options.type
+      });
     }
 
     /**
