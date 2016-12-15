@@ -7,9 +7,7 @@ export interface IAuthInterceptorProvider extends angular.IServiceProvider {
 }
 
 /**
- * Authentication Interceptor Provider
- *
- * Configures and constructs authentication interceptor instance
+ * Configures and constructs a $http interceptor that adds bearer tokens to API requests that match a given URL pattern.
  */
 export class AuthInterceptorProvider implements IAuthInterceptorProvider {
   url: RegExp;
@@ -27,7 +25,8 @@ export class AuthInterceptorProvider implements IAuthInterceptorProvider {
        */
       request(config: angular.IRequestConfig): angular.IRequestConfig {
         if ((!urlMatcher || urlMatcher.test(config.url)) && trcAuth.isAuthenticated()) {
-          (<any>config.headers).Authorization = `Bearer ${trcAuth.credentials.token}`;
+          const tokenData = trcAuth.getAccountTokenData();
+          (<any>config.headers).Authorization = `Bearer ${tokenData.token}`;
         }
 
         return config;

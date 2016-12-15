@@ -11,9 +11,9 @@ interface IAuthResponse {
 }
 
 /**
- * Encapsulates a login state
+ * Encapsulates the authenticated state of the application.
  */
-export interface IAuthCredentials {
+export interface IAccountTokenData {
   /**
    * API access token provided by the authentication endpoint
    * @type {string}
@@ -34,18 +34,119 @@ export interface IAuthCredentials {
 }
 
 /**
- * Authentication Service Provider
- *
- * Configures and constructs authentication service instance
+ * Simple adapter pattern for synchronous storage mechanisms.
+ * The availability and duration of persistence are implementation-specific
+ * (e.g. never expiring, expiring at the end of a session, expiring between refreshes)
+ */
+export interface IPersistenceStrategy<T> {
+  /**
+   * Saves the given value for later retrieval.
+   *
+   * @param {T} value
+   */
+  save(value: T): void;
+
+  /**
+   * Loads the previously saved value or null if the value does not exist.
+   *
+   * @return {T}
+   */
+  load(): T;
+
+  /**
+   * Clears the stored value.
+   */
+  clear(): void;
+}
+
+/**
+ * Adapts the HTML5 web storage mechanisms (e.g. localStorage and sessionStorage) for use as persistence strategies for authentication data.
+ */
+class WebStoragePersistenceStrategy implements IPersistenceStrategy<IAccountTokenData> {
+  private storage: Storage;
+  private key: string;
+  private serialize: (tokenData: IAccountTokenData) => string;
+
+  /**
+   * @param {Storage} storage Underlying web storage mechanism to use.
+   * @param {string} key Key/name to use with web storage mechanism.
+   * @param {function} [serializer] Serialization strategy to use when converting token data to a string (defaults to JSON.stringify)
+   */
+  constructor(storage: Storage, key: string, serializer: (tokenData: IAccountTokenData) => string = JSON.stringify) {
+    this.storage = storage;
+    this.key = key;
+    this.serialize = serializer;
+  }
+
+  /** @inheritdoc */
+  save(value: IAccountTokenData): void {
+    this.storage.setItem(this.key, this.serialize(value));
+  }
+
+  /** @inheritdoc */
+  load(): IAccountTokenData {
+    const json: string = this.storage.getItem(this.key);
+    const tokenData: any = json ? JSON.parse(json) : null;
+
+    // HACK: date does not deserialize properly
+    if (tokenData) {
+      tokenData.expires = new Date(tokenData.expires);
+    }
+
+    return <IAccountTokenData>tokenData;
+  }
+
+  /** @inheritdoc */
+  clear(): void {
+    this.storage.removeItem(this.key);
+  }
+}
+
+/**
+ * Defines configuration values for and constructs an instance of the authentication service
  */
 export interface IAuthServiceProvider extends angular.IServiceProvider {
+  /**
+   * URL endpoint at which to authenticate user accounts.
+   *
+   * @type {string}
+   */
   loginUrl: string;
+
+  /**
+   * URL endpoint at which to authenticate via the "guest" account.
+   * This is meant to support secured API endpoints that also allow anonymous access.
+   * If not provided, this endpoint will default to the loginUrl with no username and no password.
+   *
+   * @type {string}
+   */
   loginGuestUrl: string;
+
+  /**
+   * Persistence mechanism for storing credentials. May be one of:
+   *
+   *   - 'local' for window.localStorage web storage (default)
+   *   - 'session' for window.sessionStorage web storage
+   *   - an object defining 'save', 'load', and 'clear' methods
+   *
+   * @type {string|IPersistenceStrategy<IAccountTokenData>}
+   */
+  strategy: string|IPersistenceStrategy<IAccountTokenData>;
+
+  /**
+   * storage key to use for web storage strategies
+   * only necessary if strategy is set to one of 'local' or 'session'
+   *
+   * @type {string}
+   */
+  key: string;
 }
 
 export class AuthServiceProvider implements IAuthServiceProvider {
   loginUrl: string;
   loginGuestUrl: string;
+  strategy: string|IPersistenceStrategy<IAccountTokenData> = 'local';
+  key: string = 'sdaAuthCredentials';
 
   /** @ngInject */
   $get($injector: any): IAuthService {
@@ -53,46 +154,61 @@ export class AuthServiceProvider implements IAuthServiceProvider {
       throw new Error('no login url provided');
     }
 
+    const strategy = this.getPersistenceStrategy();
+
     // NOTE: defer $http dependency to prevent cycle with auth interceptor
-    return new AuthService($injector, this);
+    return new AuthService($injector, strategy, this.loginUrl, this.loginGuestUrl);
+  }
+
+  private getPersistenceStrategy(): IPersistenceStrategy<IAccountTokenData> {
+    if (!angular.isString(this.strategy)) {
+      return this.strategy;
+    }
+
+    if (!this.key) {
+      throw new Error('no web storage persistence key provided');
+    }
+
+    switch (this.strategy) {
+      case 'session':
+        return new WebStoragePersistenceStrategy(window.sessionStorage, this.key, angular.toJson);
+      case 'local':
+        /* falls through */
+      default:
+        return new WebStoragePersistenceStrategy(window.localStorage, this.key, angular.toJson);
+    }
   }
 }
 
 /**
- * Authentication Service
- *
- * Responsible for maintaining the state of a currently logged-in user account and notifying when that state changes.
+ * Responsible for maintaining the state of a currently logged-in account and notifying when that state changes.
  */
 export interface IAuthService {
-  credentials: IAuthCredentials;
+  /**
+   * @return {IAccountTokenData} token data for the currently authenticated account (if available)
+   */
+  getAccountTokenData(): IAccountTokenData;
 
   /**
    * Logs in the user identified by the specified credentials
    *
    * @param {string} username
    * @param {string} rawPassword
-   * @return {Promise.<IAuthCredentials>}
+   * @return {Promise.<IAccountTokenData>}
    */
-  login(username: string, password: string): angular.IPromise<IAuthCredentials>;
+  login(username: string, password: string): angular.IPromise<IAccountTokenData>;
 
   /**
    * Logs into a guest account
    *
-   * @return {Promise.<IAuthCredentials>}
+   * @return {Promise.<IAccountTokenData>}
    */
-  loginGuest(): angular.IPromise<IAuthCredentials>;
+  loginGuest(): angular.IPromise<IAccountTokenData>;
 
   /**
    * Logs out of the current account
    */
   logout(): void;
-
-  /**
-   * Logs out of the active account (if necessary) and explicitly sets the active account to the given credentials
-   *
-   * @param {IAuthCredentials} creds
-   */
-  setCredentials(creds: IAuthCredentials): void;
 
   /**
    * @return whether the user is authenticated
@@ -105,7 +221,7 @@ export interface IAuthService {
    * @param {function} fn
    * @return {function} unregistration function
    */
-  onLogin(fn: (creds: IAuthCredentials) => void): () => void;
+  onLogin(fn: (creds: IAccountTokenData) => void): () => void;
 
   /**
    * Adds a subscriber for logout events
@@ -116,25 +232,24 @@ export interface IAuthService {
   onLogout(fn: (_: null) => void): () => void;
 }
 
-/**
- * Authentication service implementation
- */
 class AuthService implements IAuthService {
-  credentials: IAuthCredentials;
-
   private $injector: any;
-  private provider: IAuthServiceProvider;
+  private loginUrl: string;
+  private loginGuestUrl: string;
 
-  private loginEmitter: EventEmitter<IAuthCredentials> = new EventEmitter();
+  private loginEmitter: EventEmitter<IAccountTokenData> = new EventEmitter();
   private logoutEmitter: EventEmitter<null> = new EventEmitter();
+
+  private persistenceStrategy: IPersistenceStrategy<IAccountTokenData>;
+  private cachedTokenData: IAccountTokenData;
 
   /**
    * Adapts a login response data vehicle into authentication credentials for use within the authentication framework
    *
    * @param {IAuthResponse} res
-   * @return {IAuthCredentials}
+   * @return {IAccountTokenData}
    */
-  private static adaptAuthData(res: IAuthResponse): IAuthCredentials {
+  private static adaptAuthResponse(res: IAuthResponse): IAccountTokenData {
     return {
       token: res.access_token,
       expires: new Date(res.expiration),
@@ -142,66 +257,87 @@ class AuthService implements IAuthService {
     };
   }
 
-  constructor($injector: any, provider: IAuthServiceProvider) {
+  constructor($injector: any, persistenceStrategy: IPersistenceStrategy<IAccountTokenData>, loginUrl: string, loginGuestUrl?: string) {
     this.$injector = $injector;
-    this.provider = provider;
+    this.persistenceStrategy = persistenceStrategy;
+    this.loginUrl = loginUrl;
+    this.loginGuestUrl = loginGuestUrl;
+
+    // attempt to load persisted credentials
+    const tokenData = this.getAccountTokenData();
+    this.setAccountTokenData(tokenData);
   }
 
   /** @inheritdoc */
-  login(username: string, password: string): angular.IPromise<IAuthCredentials> {
-    const $http = this.$injector.get('$http');
-    const loginP = $http.post(this.provider.loginUrl, {username, password}).then(res => res.data);
-    const credsP = loginP.then(AuthService.adaptAuthData);
+  getAccountTokenData(): IAccountTokenData {
+    if (!this.cachedTokenData) {
+      this.cachedTokenData = this.persistenceStrategy.load();
+    }
 
-    credsP.then(creds => this.setCredentials(creds));
+    return this.cachedTokenData;
+  }
+
+  /** @inheritdoc */
+  login(username: string, password: string): angular.IPromise<IAccountTokenData> {
+    const $http = this.$injector.get('$http');
+    const loginP = $http.post(this.loginUrl, {username, password}).then(res => res.data);
+    const tokenDataP = loginP.then(AuthService.adaptAuthResponse);
+
+    tokenDataP.then(tokenData => this.setAccountTokenData(tokenData));
+
+    return tokenDataP;
+  }
+
+  /** @inheritdoc */
+  loginGuest(): angular.IPromise<IAccountTokenData> {
+    const $http = this.$injector.get('$http');
+    const loginP = $http.post(this.loginGuestUrl || this.loginUrl, {}).then(res => res.data);
+    const credsP = loginP.then(AuthService.adaptAuthResponse);
+
+    credsP.then(tokenData => this.setAccountTokenData(tokenData));
 
     return credsP;
   }
 
   /** @inheritdoc */
-  loginGuest(): angular.IPromise<IAuthCredentials> {
-    const $http = this.$injector.get('$http');
-    const loginP = $http.post(this.provider.loginGuestUrl || this.provider.loginUrl, {}).then(res => res.data);
-    const credsP = loginP.then(AuthService.adaptAuthData);
-
-    credsP.then(creds => {
-      this.credentials = creds;
-      this.loginEmitter.emit(creds);
-    });
-
-     return credsP;
-  }
-
-  /** @inheritdoc */
   logout(): void {
-    this.credentials = null;
+    this.persistenceStrategy.clear();
+    this.cachedTokenData = null;
     this.logoutEmitter.emit(null);
   }
 
   /** @inheritdoc */
-  setCredentials(creds: IAuthCredentials): void {
-    if (this.credentials) {
-      this.logout();
-    }
-
-    if (creds) {
-      this.credentials = creds;
-      this.loginEmitter.emit(creds);
-    }
-  }
-
-  /** @inheritdoc */
   isAuthenticated(): boolean {
-    return !!this.credentials;
+    const tokenData = this.getAccountTokenData();
+    return !!tokenData;
   }
 
   /** @inheritdoc */
-  onLogin(fn: (creds: IAuthCredentials) => void): () => void {
+  onLogin(fn: (tokenData: IAccountTokenData) => void): () => void {
     return this.loginEmitter.subscribe(fn);
   }
 
   /** @inheritdoc */
   onLogout(fn: (_: null) => void): () => void {
     return this.logoutEmitter.subscribe(fn);
+  }
+
+  /**
+   * Logs out currently authenticated account if necessary, sets new account token data, and triggers login event.
+   *
+   * @param {IAccountTokenData} tokenData
+   */
+  private setAccountTokenData(newTokenData: IAccountTokenData): void {
+    const oldTokenData = this.getAccountTokenData();
+
+    if (oldTokenData && oldTokenData !== newTokenData) {
+      this.logout();
+    }
+
+    if (newTokenData) {
+      this.cachedTokenData = newTokenData;
+      this.persistenceStrategy.save(newTokenData);
+      this.loginEmitter.emit(newTokenData);
+    }
   }
 }

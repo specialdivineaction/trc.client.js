@@ -11,18 +11,15 @@ interface IAccountResource extends angular.resource.IResourceClass<IAccount> {
   update(params: any, work: IAccount): IAccount;
 }
 
-/**
- * Accounts Repository Provider
- *
- * Configures and constructs accounts repository service instance.
- */
 export interface IAccountsRepositoryProvider extends angular.IServiceProvider {
+  /**
+   * API endpoint to use for querying and updating data for a given account.
+   *
+   * @type {string}
+   */
   url: string;
 }
 
-/**
- * Accounts Repository Provider implementation
- */
 export class AccountsRepositoryProvider implements IAccountsRepositoryProvider {
   url: string;
 
@@ -39,9 +36,7 @@ export class AccountsRepositoryProvider implements IAccountsRepositoryProvider {
 }
 
 /**
- * Accounts Repository
- *
- * Responsible for managing persistence and retrieval of account data.
+ * Manages the persistence and retrieval of account data.
  */
 export interface IAccountsRepository {
   /**
