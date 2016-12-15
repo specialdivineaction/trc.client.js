@@ -48,8 +48,13 @@ export class AuthServiceProvider implements IAuthServiceProvider {
   loginGuestUrl: string;
 
   /** @ngInject */
-  $get($http: angular.IHttpService): IAuthService {
-    return new AuthService($http, this);
+  $get($injector: any): IAuthService {
+    if (!this.loginUrl) {
+      throw new Error('no login url provided');
+    }
+
+    // NOTE: defer $http dependency to prevent cycle with auth interceptor
+    return new AuthService($injector, this);
   }
 }
 
@@ -117,7 +122,7 @@ export interface IAuthService {
 class AuthService implements IAuthService {
   credentials: IAuthCredentials;
 
-  private $http: angular.IHttpService;
+  private $injector: any;
   private provider: IAuthServiceProvider;
 
   private loginEmitter: EventEmitter<IAuthCredentials> = new EventEmitter();
@@ -137,14 +142,15 @@ class AuthService implements IAuthService {
     };
   }
 
-  constructor($http: angular.IHttpService, provider: IAuthServiceProvider) {
-    this.$http = $http;
+  constructor($injector: any, provider: IAuthServiceProvider) {
+    this.$injector = $injector;
     this.provider = provider;
   }
 
   /** @inheritdoc */
   login(username: string, password: string): angular.IPromise<IAuthCredentials> {
-    const loginP = this.$http.post(this.provider.loginUrl, {username, password}).then(res => res.data);
+    const $http = this.$injector.get('$http');
+    const loginP = $http.post(this.provider.loginUrl, {username, password}).then(res => res.data);
     const credsP = loginP.then(AuthService.adaptAuthData);
 
     credsP.then(creds => this.setCredentials(creds));
@@ -154,7 +160,8 @@ class AuthService implements IAuthService {
 
   /** @inheritdoc */
   loginGuest(): angular.IPromise<IAuthCredentials> {
-    const loginP = this.$http.post(this.provider.loginGuestUrl, {}).then(res => res.data);
+    const $http = this.$injector.get('$http');
+    const loginP = $http.post(this.provider.loginGuestUrl || this.provider.loginUrl, {}).then(res => res.data);
     const credsP = loginP.then(AuthService.adaptAuthData);
 
     credsP.then(creds => {

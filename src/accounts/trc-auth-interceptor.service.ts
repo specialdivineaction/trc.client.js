@@ -16,35 +16,22 @@ export class AuthInterceptorProvider implements IAuthInterceptorProvider {
 
   /** @ngInject */
   $get(trcAuth: IAuthService): angular.IHttpInterceptor {
-    return new AuthInterceptor(trcAuth, this.url);
-  }
-}
+    const urlMatcher = this.url;
 
-/**
- * Authentication Interceptor
- *
- * Intercepts and configures matching HTTP requests according to the user's authentication status.
- */
-class AuthInterceptor implements angular.IHttpInterceptor {
-  private auth: IAuthService;
-  private urlMatcher: RegExp;
+    return {
+      /**
+       * Appends an 'Authorization:' header to the request if the destination URL is intended for the configured API
+       *
+       * @param {object} config
+       * @return {object}
+       */
+      request(config: angular.IRequestConfig): angular.IRequestConfig {
+        if ((!urlMatcher || urlMatcher.test(config.url)) && trcAuth.isAuthenticated()) {
+          (<any>config.headers).Authorization = `Bearer ${trcAuth.credentials.token}`;
+        }
 
-  constructor(auth: IAuthService, urlMatcher: RegExp) {
-    this.auth = auth;
-    this.urlMatcher = urlMatcher;
-  }
-
-  /**
-   * Appends an 'Authorization:' header to the request if the destination URL is intended for the configured API
-   *
-   * @param {object} config
-   * @return {object}
-   */
-  request(config: angular.IRequestConfig): angular.IRequestConfig {
-    if (this.urlMatcher.test(config.url) && this.auth.isAuthenticated()) {
-      (<any>config.headers).Authorization = `Bearer ${this.auth.credentials.token}`;
-    }
-
-    return config;
+        return config;
+      }
+    };
   }
 }

@@ -5,7 +5,7 @@
  * @see https://angular.io/docs/ts/latest/api/core/index/EventEmitter-class.html
  */
 export class EventEmitter<T> {
-  listeners: ((value?: T) => void)[];
+  listeners: ((value?: T) => void)[] = [];
 
   /**
    * Notify listeners of an event
