@@ -184,8 +184,10 @@ class AuthService implements IAuthService {
       this.logout();
     }
 
-    this.credentials = creds;
-    this.loginEmitter.emit(creds);
+    if (creds) {
+      this.credentials = creds;
+      this.loginEmitter.emit(creds);
+    }
   }
 
   /** @inheritdoc */
