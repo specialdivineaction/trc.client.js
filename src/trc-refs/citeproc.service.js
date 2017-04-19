@@ -24,7 +24,7 @@ function citeprocProvider(_) {
   /** @type {object.<string,Promise.<string>>} */
   var loadedLocales = {};
 
-  /** @type {object.<string,styleSupplierCallback} */
+  /** @type {object.<string,styleSupplierCallback>} */
   var styleSuppliers = {};
 
   /** @type {object.<string,Promise.<string>>} */
@@ -32,12 +32,26 @@ function citeprocProvider(_) {
 
   var provider = {
     defaultLocale: 'en-US',
+    linkText: 'read online',
+    linkPrefix: '[',
+    linkSuffix: ']',
+    linkFormatter: defaultLinkFormatter,
     addLocale: addLocale,
     addStyle: addStyle,
     $get: citeprocFactory
   };
 
   return provider;
+
+  /**
+   * Formats URL link text into a hyperlinked anchor tag.
+   * @param  {string} url
+   * @param  {string} text
+   * @return {string}
+   */
+  function defaultLinkFormatter(url, text) {
+    return provider.linkPrefix + '<a href="' + url + '" target="_blank">' + (provider.linkText || text) + '</a>' + provider.linkSuffix;
+  }
 
   /**
    * Register a locale with the citeproc provider
@@ -79,7 +93,8 @@ function citeprocProvider(_) {
       return paramsP.then(function (params) {
         var citeprocSys = {
           retrieveLocale: getLocale,
-          retrieveItem: getBibliographyItem
+          retrieveItem: getBibliographyItem,
+          variableWrapper: citeprocSysVariableWrapper
         };
 
         return new CSL.Engine(citeprocSys, params.style, provider.defaultLocale);
@@ -111,6 +126,22 @@ function citeprocProvider(_) {
         }
 
         return item;
+      }
+    }
+
+    /**
+     * Intercepts variable text insertion and performs extra formatting. In this case, formats link text.
+     * @param  {object} params    CSL variable formatting parameters
+     * @param  {string} prePunct  prefix (punctuation) that is supposedto go before variable text
+     * @param  {string} str       variable text as formatted by CSL style
+     * @param  {string} postPunct suffix (punctuation) that is supposed to go after variable text
+     * @return {string}           formatted variable text
+     */
+    function citeprocSysVariableWrapper(params, prePunct, str, postPunct) {
+      if (params.variableNames[0] === 'URL' && params.itemData.URL) {
+        return prePunct + provider.linkFormatter(params.itemData.URL, str) + postPunct;
+      } else {
+        return (prePunct + str + postPunct);
       }
     }
 
